@@ -24,7 +24,10 @@ class User(AbstractUser):
 
 class Ingredient(models.Model):
     name = models.CharField(verbose_name='Название', max_length=100)
-    measurement_unit = models.CharField(verbose_name='Единица измерения', max_length=50)
+    measurement_unit = models.CharField(
+        verbose_name='Единица измерения', 
+        max_length=50
+    )
     amount = models.SmallIntegerField(verbose_name='Количество')
 
     class Meta:
@@ -42,8 +45,6 @@ class Recipe(models.Model):
         through='RecipeIngredient',
         verbose_name='Ингредиенты'
     )
-    is_favorited = models.BooleanField(verbose_name='Понравившееся')
-    is_in_shooping_cart = models.BooleanField(verbose_name='В корзине')
     name = models.CharField(verbose_name='Название', max_length=255)
     text = models.TextField(verbose_name='Описание')
     image = models.ImageField(
@@ -73,3 +74,31 @@ class RecipeIngredient(models.Model):
     def __str__(self):
         return (f'{self.ingredient.name} - {self.amount}'
                 f' {self.ingredient.measurement_unit}')
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='favorites'
+    )
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE,
+        related_name='favorited_by'
+    )
+
+    class Meta:
+        unique_together = ('user', 'recipe')
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='shopping_cart'
+    )
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE,
+        related_name='in_carts'
+    )
+
+    class Meta:
+        unique_together = ('user', 'recipe')
