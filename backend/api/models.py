@@ -11,10 +11,8 @@ class User(AbstractUser):
         verbose_name='Аватар'
     )
 
-    REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
-    USERNAME_FIELD = 'username'
-
     class Meta:
+        ordering = ('id',)
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 
@@ -22,10 +20,15 @@ class User(AbstractUser):
         return self.username
 
 
+class Subscription(models.Model):
+    user = models.ForeignKey(User, related_name='follower', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, related_name='following', on_delete=models.CASCADE)
+
+
 class Ingredient(models.Model):
     name = models.CharField(verbose_name='Название', max_length=100)
     measurement_unit = models.CharField(
-        verbose_name='Единица измерения', 
+        verbose_name='Единица измерения',
         max_length=50
     )
     amount = models.SmallIntegerField(verbose_name='Количество')

@@ -13,6 +13,8 @@ router.register(r'recipes', RecipeViewSet, basename='recipe')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/', include('djoser.urls')),  # Работа с пользователями
+    path('api/auth/', include('djoser.urls.authtoken')),  # Работа с токенами
 ]
 
 if settings.DEBUG:

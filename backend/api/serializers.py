@@ -1,14 +1,21 @@
 from rest_framework import serializers
-from .models import User, Recipe, RecipeIngredient
+from djoser.serializers import UserSerializer, UserCreateSerializer, TokenCreateSerializer
+from django.contrib.auth import authenticate, get_user_model
+from .models import Recipe, RecipeIngredient, Subscription
 
 
-class UserSerializer(serializers.ModelSerializer):
+User = get_user_model()
+
+
+class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
-    avatar = serializers.ImageField()
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
 
     class Meta:
         model = User
-        fields = [
+        fields = (
             'email',
             'id',
             'username',
@@ -16,13 +23,55 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name',
             'is_subscribed',
             'avatar',
-        ]
+        )
+
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.subscribers.filter(id=request.user.id).exists()
+            return Subscription.objects.filter(
+                user=request.user, author=obj).exists()
         return False
+
+
+class CustomUserCreateSerializer(UserCreateSerializer):
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
+
+    class Meta(UserCreateSerializer.Meta):
+        model = User
+        fields = ('email', 'username', 'first_name', 'last_name', 'password')
+
+
+class EmailTokenCreateSerializer(TokenCreateSerializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(style={'input_type': 'password'})
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if email and password:
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                raise serializers.ValidationError(_('Неверный email или пароль'))
+
+            self.user = authenticate(
+                request=self.context.get('request'),
+                username=user.username,  # `authenticate` по умолчанию ожидает `username`
+                password=password,
+            )
+            if not self.user:
+                raise serializers.ValidationError(_('Неверный email или пароль'))
+        else:
+            raise serializers.ValidationError(_('Необходимо указать email и пароль'))
+
+        return attrs
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
@@ -37,7 +86,7 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RecipeIngredient
-        fields = ['id', 'name', 'measurement_unit', 'amount']
+        fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -49,10 +98,10 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        fields = [
+        fields = (
             'id', 'author', 'ingredients', 'is_favorited',
             'is_in_shopping_cart', 'name', 'image', 'text', 'cooking_time'
-        ]
+        )
 
     def get_ingredients(self, obj):
         recipe_ingredients = RecipeIngredient.objects.filter(recipe=obj)
