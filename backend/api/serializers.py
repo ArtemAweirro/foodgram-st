@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from djoser.serializers import UserSerializer, UserCreateSerializer, TokenCreateSerializer
 from django.contrib.auth import authenticate, get_user_model
-from .models import Recipe, RecipeIngredient, Subscription
+from .models import Recipe, RecipeIngredient, Subscription, Ingredient
 
 
 User = get_user_model()
@@ -75,22 +75,26 @@ class EmailTokenCreateSerializer(TokenCreateSerializer):
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
-    id = serializers.PrimaryKeyRelatedField(
-        source='ingredient',
-        read_only=True
-    )
-    name = serializers.CharField(source='ingredient.name', read_only=True)
-    measurement_unit = serializers.CharField(
-        source='ingredient.measurement_unit', read_only=True)
-    amount = serializers.IntegerField()
+    id = serializers.ReadOnlyField(source='ingredient.id')
+    name = serializers.ReadOnlyField(source='ingredient.name')
+    measurement_unit = serializers.ReadOnlyField(
+        source='ingredient.measurement_unit')
 
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class RecipeSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+class IngredientWriteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    amount = serializers.IntegerField(min_value=1)
+
+    class Meta:
+        model = Ingredient
+
+
+class RecipeReadSerializer(serializers.ModelSerializer):
+    author = CustomUserSerializer(read_only=True)
     ingredients = serializers.SerializerMethodField()
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
@@ -118,3 +122,37 @@ class RecipeSerializer(serializers.ModelSerializer):
         if user.is_authenticated:
             return obj.in_carts.filter(user=user).exists()
         return False
+
+
+class RecipeWriteSerializer(serializers.ModelSerializer):
+    ingredients = IngredientWriteSerializer(many=True)
+    image = serializers.ImageField()
+    
+    class Meta:
+        model = Recipe
+        fields = (
+            'ingredients', 'image', 'name', 'text', 'cooking_time',
+        )
+
+    def validate_ingredients(self, value):
+        if not value:
+            raise serializers.ValidationError('Нужно добавить хотя бы один ингредиент.')
+        ids = [item['id'] for item in value]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError('Ингредиенты не должны повторяться.')
+        return value
+
+    def create_ingredients(self, ingredients_data, recipe):
+        for item in ingredients_data:
+            ingredient = Ingredient.objects.get(id=item['id'])
+            RecipeIngredient.objects.create(
+                recipe=recipe,
+                ingredient=ingredient,
+                amount=item['amount']
+            )
+
+    def create(self, validated_data):
+        ingredients_data = validated_data.pop('ingredients')
+        recipe = Recipe.objects.create(**validated_data, author=self.context['request'].user)
+        self.create_ingredients(ingredients_data, recipe)
+        return recipe

@@ -34,6 +34,7 @@ class Ingredient(models.Model):
     amount = models.SmallIntegerField(verbose_name='Количество')
 
     class Meta:
+        ordering = ('id',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
@@ -58,6 +59,7 @@ class Recipe(models.Model):
     cooking_time = models.SmallIntegerField(verbose_name='Время приготовления')
 
     class Meta:
+        ordering = ('id',)
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
 

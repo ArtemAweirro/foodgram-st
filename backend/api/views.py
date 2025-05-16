@@ -2,14 +2,18 @@ from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 
 
-from .models import Recipe
-from .serializers import RecipeSerializer
+from .models import Recipe, Ingredient
+from .serializers import RecipeReadSerializer, RecipeWriteSerializer
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
-    pagination_class = PageNumberPagination
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+    def get_serializer_class(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH']:
+            return RecipeWriteSerializer
+        return RecipeReadSerializer
+
+
+class IngredientViewSet(viewsets.ModelViewSet):
+    queryset = Ingredient.objects.all()
