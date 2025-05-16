@@ -4,11 +4,12 @@ from django.conf.urls.static import static
 from django.urls import include, path
 from rest_framework import routers
 
-from api.views import RecipeViewSet
+from api.views import RecipeViewSet, IngredientViewSet
 
 
 router = routers.DefaultRouter()
 router.register(r'recipes', RecipeViewSet, basename='recipe')
+router.register(r'ingredients', IngredientViewSet, basename='ingredient')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

@@ -1,9 +1,8 @@
 from rest_framework import viewsets
-from rest_framework.pagination import PageNumberPagination
 
 
 from .models import Recipe, Ingredient
-from .serializers import RecipeReadSerializer, RecipeWriteSerializer
+from .serializers import RecipeReadSerializer, RecipeWriteSerializer, IngredientSerializer
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -17,3 +16,4 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
