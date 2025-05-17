@@ -24,6 +24,11 @@ class Subscription(models.Model):
     user = models.ForeignKey(User, related_name='follower', on_delete=models.CASCADE)
     author = models.ForeignKey(User, related_name='following', on_delete=models.CASCADE)
 
+    class Meta:
+        ordering = ('author',)
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+
 
 class Ingredient(models.Model):
     name = models.CharField(verbose_name='Название', max_length=100)
@@ -92,6 +97,8 @@ class Favorite(models.Model):
 
     class Meta:
         unique_together = ('user', 'recipe')
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
 
 
 class ShoppingCart(models.Model):

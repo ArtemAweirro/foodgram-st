@@ -40,7 +40,7 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ('email', 'username', 'first_name', 'last_name', 'password')
+        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'password')
 
 
 class EmailTokenCreateSerializer(TokenCreateSerializer):
@@ -163,3 +163,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         recipe = Recipe.objects.create(**validated_data, author=self.context['request'].user)
         self.create_ingredients(ingredients_data, recipe)
         return recipe
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    author = CustomUserSerializer(read_only=True)
+
+    class Meta:
+        model = Subscription
+        fields = ('author',)
