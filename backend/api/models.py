@@ -31,7 +31,6 @@ class Ingredient(models.Model):
         verbose_name='Единица измерения',
         max_length=50
     )
-    amount = models.SmallIntegerField(verbose_name='Количество')
 
     class Meta:
         ordering = ('id',)

@@ -8,7 +8,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
 
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'measurement_unit', 'amount')
+    list_display = ('name', 'measurement_unit')
 
 
 # class UserAdmin
