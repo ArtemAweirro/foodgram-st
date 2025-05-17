@@ -4,7 +4,10 @@ from django.conf.urls.static import static
 from django.urls import include, path
 from rest_framework import routers
 
-from api.views import RecipeViewSet, IngredientViewSet, SubscriptionListView, SubscribeView
+from api.views import (
+    RecipeViewSet, IngredientViewSet, SubscriptionListView,
+    SubscribeView, UserAvatarView
+)
 
 
 router = routers.DefaultRouter()
@@ -16,6 +19,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/users/subscriptions/', SubscriptionListView.as_view(), name='subscriptions'),
     path('api/users/<int:id>/subscribe/', SubscribeView.as_view(), name='subscribe'),
+    path('api/users/me/avatar/', UserAvatarView.as_view(), name='user-avatar-update'),
     path('api/', include('djoser.urls')),  # Работа с пользователями
     path('api/auth/', include('djoser.urls.authtoken')),  # Работа с токенами
 

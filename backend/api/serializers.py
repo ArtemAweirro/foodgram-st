@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from djoser.serializers import UserSerializer, UserCreateSerializer, TokenCreateSerializer
+from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, get_user_model
 from .models import Recipe, RecipeIngredient, Subscription, Ingredient
+
+import base64
+import re
 
 
 User = get_user_model()
@@ -179,3 +183,31 @@ class RecipeInShoppingCartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class AvatarUpdateSerializer(serializers.Serializer):
+    avatar = serializers.CharField()
+
+    def validate_avatar(self, value):
+        # ожидаем строку формата data:image/png;base64,.....
+        pattern = r'data:image/(?P<ext>.+?);base64,(?P<data>.+)'
+        match = re.match(pattern, value)
+        if not match:
+            raise serializers.ValidationError('Неверный формат изображения.')
+
+        ext = match.group('ext')
+        data = match.group('data')
+
+        try:
+            decoded_file = base64.b64decode(data)
+        except Exception:
+            raise serializers.ValidationError('Невозможно декодировать изображение.')
+
+        file_name = f"avatar.{ext}"
+        self.validated_data['avatar_file'] = ContentFile(decoded_file, name=file_name)
+        return value
+
+    def update(self, instance, validated_data):
+        instance.avatar = validated_data['avatar_file']
+        instance.save()
+        return instance

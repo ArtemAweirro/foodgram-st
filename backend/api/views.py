@@ -2,6 +2,8 @@ from rest_framework import generics, viewsets, status, views
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
+from django.db.models import Sum
+from django.http import HttpResponse
 
 
 from .models import (
@@ -13,7 +15,8 @@ from .serializers import (
     RecipeReadSerializer, RecipeWriteSerializer,
     IngredientSerializer,
     SubscriptionSerializer,
-    RecipeInShoppingCartSerializer
+    RecipeInShoppingCartSerializer,
+    AvatarUpdateSerializer
 )
 
 
@@ -71,6 +74,38 @@ class RecipeViewSet(viewsets.ModelViewSet):
             cart_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=False, methods=['get'])
+    def download_shopping_cart(self, request):
+        user = request.user
+        # Получаем рецепты в корзине пользователя
+        recipes = Recipe.objects.filter(in_carts__user=user)
+
+        if not recipes.exists():
+            return Response({'errors': 'Корзина покупок пуста'}, status=400)
+
+        # Собираем ингредиенты с суммированием по количеству из всех рецептов в корзине
+        ingredients = (recipes
+                       .values('ingredients__name', 'ingredients__measurement_unit')
+                       .annotate(amount=Sum('recipeingredient__amount'))
+                       .order_by('ingredients__name'))
+
+        # Формируем текст для файла
+        lines = []
+        for item in ingredients:
+            name = item['ingredients__name']
+            unit = item['ingredients__measurement_unit']
+            amount = item['amount']
+            lines.append(f"{name} — {amount} {unit}")
+
+        text = "\n".join(lines)
+
+        # Формируем HTTP-ответ с файлом
+        response = HttpResponse(text, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="shopping_cart.txt"'
+
+        return response
+
+
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
@@ -110,7 +145,30 @@ class SubscribeView(views.APIView):
 
         subscription = Subscription.objects.filter(user=user, author=author)
         if not subscription.exists():
-            return Response({'errors': 'Вы не подписаны'}, status=400)
+            return Response(
+                {'errors': 'Вы не подписаны'},
+                status=status.HTTP_400_BAD_REQUEST)
 
         subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserAvatarView(views.APIView):
+    def put(self, request):
+        user = request.user
+        serializer = AvatarUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.update(user, serializer.validated_data)
+            # Отвечаем только полем avatar (URL)
+            return Response(
+                {'avatar': request.build_absolute_uri(user.avatar.url)})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        user = request.user
+        # Удаляем файл аватара, если он есть
+        if user.avatar:
+            user.avatar.delete(save=False)  # удаляем физически с диска
+            user.avatar = None  # обнуляем поле
+            user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
