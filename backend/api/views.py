@@ -140,6 +140,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CustomUserViewSet(DjoserUserViewSet):
     serializer_class = CustomUserSerializer
+    pagination_class = LimitOffsetPagination
 
     # Словарь сериализаторов в зависимости от action
     action_serializers = {
@@ -167,11 +168,17 @@ class CustomUserViewSet(DjoserUserViewSet):
         user = request.user
         # Получаем всех пользователей, на которых подписан текущий пользователь
         authors = User.objects.filter(following__user=user)
+        # Извлекаем параметр ?recipes_limit
+        recipes_limit = request.query_params.get('recipes_limit')
 
         page = self.paginate_queryset(authors)
         if page is not None:
             serializer = SubscriptionSerializer(
-                page, many=True, context={'request': request}
+                page, many=True,
+                context={
+                    'request': request,
+                    'recipes_limit': recipes_limit
+                }
             )
             return self.get_paginated_response(serializer.data)
 
@@ -199,7 +206,17 @@ class CustomUserViewSet(DjoserUserViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             Subscription.objects.create(user=user, author=author)
-            serializer = SubscriptionSerializer(author, context={'request': request})
+
+            # Извлекаем параметр ?recipes_limit
+            recipes_limit = request.query_params.get('recipes_limit')
+
+            serializer = SubscriptionSerializer(
+                author,
+                context={
+                    'request': request,
+                    'recipes_limit': recipes_limit
+                }
+            )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if request.method == 'DELETE':
