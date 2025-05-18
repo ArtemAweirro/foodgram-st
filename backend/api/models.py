@@ -1,9 +1,21 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
+
+
+username_validator = RegexValidator(
+    regex=r'^[\w.@+-]+$',
+    message='Имя пользователя может содержать только буквы, цифры и символы . @ + - _ и должно заканчиваться на Z.'
+)
 
 
 class User(AbstractUser):
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, max_length=254)
+    username = models.CharField(
+        unique=True, max_length=150,
+        validators=(username_validator,))
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
     avatar = models.ImageField(
         upload_to='users/images/',
         null=True,
@@ -57,10 +69,10 @@ class Recipe(models.Model):
     text = models.TextField(verbose_name='Описание')
     image = models.ImageField(
         upload_to='recipe/images/',
-        null=True,
-        default=None
+        null=False,
+        blank=False
     )
-    cooking_time = models.SmallIntegerField(verbose_name='Время приготовления')
+    cooking_time = models.IntegerField(verbose_name='Время приготовления')
 
     class Meta:
         ordering = ('id',)

@@ -3,6 +3,7 @@ from djoser.serializers import UserSerializer, UserCreateSerializer, TokenCreate
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, get_user_model
 from .models import Recipe, RecipeIngredient, Subscription, Ingredient
+from rest_framework.exceptions import PermissionDenied
 
 import base64
 import re
@@ -63,7 +64,7 @@ class EmailTokenCreateSerializer(TokenCreateSerializer):
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
-                raise serializers.ValidationError(_('Неверный email или пароль'))
+                raise serializers.ValidationError('Неверный email или пароль')
 
             self.user = authenticate(
                 request=self.context.get('request'),
@@ -71,9 +72,9 @@ class EmailTokenCreateSerializer(TokenCreateSerializer):
                 password=password,
             )
             if not self.user:
-                raise serializers.ValidationError(_('Неверный email или пароль'))
+                raise serializers.ValidationError('Неверный email или пароль')
         else:
-            raise serializers.ValidationError(_('Необходимо указать email и пароль'))
+            raise serializers.ValidationError('Необходимо указать email и пароль')
 
         return attrs
 
@@ -96,17 +97,19 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class IngredientWriteSerializer(serializers.Serializer):
+class IngredientWriteSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
     amount = serializers.IntegerField(min_value=1)
 
     class Meta:
-        model = Ingredient
+        model = RecipeIngredient
+        fields = ('id', 'amount')
 
 
 class RecipeReadSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
-    ingredients = serializers.SerializerMethodField()
+    ingredients = IngredientInRecipeSerializer(
+        source='recipeingredient_set', many=True)
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = serializers.ImageField()
@@ -135,10 +138,32 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         return False
 
 
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if obj.image else None
+
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+        return super().to_internal_value(data)
+
+
 class RecipeWriteSerializer(serializers.ModelSerializer):
-    ingredients = IngredientWriteSerializer(many=True)
-    image = serializers.ImageField()
-    
+    ingredients = IngredientWriteSerializer(many=True, write_only=True)
+    image = Base64ImageField()
+    cooking_time = serializers.IntegerField(min_value=1)
+
     class Meta:
         model = Recipe
         fields = (
@@ -153,14 +178,28 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Ингредиенты не должны повторяться.')
         return value
 
+    def validate(self, attrs):
+        ingredients = attrs.get('ingredients')
+        self.validate_ingredients(ingredients)
+        return attrs
+
     def create_ingredients(self, ingredients_data, recipe):
+        recipe_ingredients = []
         for item in ingredients_data:
-            ingredient = Ingredient.objects.get(id=item['id'])
-            RecipeIngredient.objects.create(
-                recipe=recipe,
-                ingredient=ingredient,
-                amount=item['amount']
+            try:
+                ingredient = Ingredient.objects.get(id=item['id'])
+            except Ingredient.DoesNotExist:
+                raise serializers.ValidationError(
+                    {'ingredients': [f'Ингредиент с id={item["id"]} не найден.']}
+                )
+            recipe_ingredients.append(
+                RecipeIngredient(
+                    recipe=recipe,
+                    ingredient=ingredient,
+                    amount=item['amount']
+                )
             )
+        RecipeIngredient.objects.bulk_create(recipe_ingredients)
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
@@ -168,13 +207,33 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         self.create_ingredients(ingredients_data, recipe)
         return recipe
 
+    def update(self, instance, validated_data):
+        user = self.context['request'].user
+        if instance.author != user:
+            raise PermissionDenied('Вы не являетесь автором этого рецепта.')
+        # Извлекаем ингредиенты, если они есть в запросе
+        ingredients_data = validated_data.pop('ingredients')
+
+        # Обновляем оставшиеся поля рецепта
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Если ингредиенты указаны — пересоздаём связи
+        if ingredients_data is not None:
+            # Удаляем старые связи
+            instance.ingredients.clear()
+            # Создаём новые связи
+            self.create_ingredients(ingredients_data, instance)
+
+        return instance
+
+    def to_representation(self, instance):
+        return RecipeReadSerializer(instance, context=self.context).data
+
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    author = CustomUserSerializer(read_only=True)
-
-    class Meta:
-        model = Subscription
-        fields = ('author',)
+    pass
 
 
 class RecipeInShoppingCartSerializer(serializers.ModelSerializer):
@@ -203,11 +262,12 @@ class AvatarUpdateSerializer(serializers.Serializer):
         except Exception:
             raise serializers.ValidationError('Невозможно декодировать изображение.')
 
-        file_name = f"avatar.{ext}"
-        self.validated_data['avatar_file'] = ContentFile(decoded_file, name=file_name)
+        self.avatar_file = ContentFile(decoded_file, name=f"avatar.{ext}")
         return value
 
     def update(self, instance, validated_data):
-        instance.avatar = validated_data['avatar_file']
-        instance.save()
+        avatar_file = getattr(self, 'avatar_file', None)
+        if avatar_file:
+            instance.avatar = avatar_file
+            instance.save()
         return instance
