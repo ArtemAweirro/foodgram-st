@@ -11,6 +11,7 @@ from djoser.conf import settings
 
 
 from .filters import RecipeFilter
+from .permissions import OwnerOrReadOnly
 from .models import (
     Recipe, Ingredient,
     Favorite, ShoppingCart,
@@ -28,7 +29,7 @@ from .serializers import (
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+    permission_classes = (OwnerOrReadOnly,)
     pagination_class = LimitOffsetPagination
     filter_backends = (DjangoFilterBackend, )
     filterset_class = RecipeFilter
