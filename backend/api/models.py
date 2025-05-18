@@ -13,12 +13,25 @@ username_validator = RegexValidator(
 
 
 class User(AbstractUser):
-    email = models.EmailField(unique=True, max_length=254)
+    email = models.EmailField(
+        unique=True,
+        max_length=254,
+        verbose_name='Почта'
+    )
     username = models.CharField(
-        unique=True, max_length=150,
-        validators=(username_validator,))
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
+        unique=True,
+        max_length=150,
+        verbose_name='Никнейм',
+        validators=(username_validator,)
+    )
+    first_name = models.CharField(
+        max_length=150,
+        verbose_name='Имя'
+    )
+    last_name = models.CharField(
+        max_length=150,
+        verbose_name='Фамилия'
+    )
     avatar = models.ImageField(
         upload_to='users/images/',
         null=True,
@@ -39,12 +52,14 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         User,
         related_name='follower',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name='Подписчик'
     )
     author = models.ForeignKey(
         User,
         related_name='following',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name='Автор'
     )
 
     class Meta:
@@ -65,7 +80,7 @@ class Ingredient(models.Model):
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
-    def _str_(self):
+    def __str__(self):
         return self.name
 
 
@@ -73,7 +88,8 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipes'
+        related_name='recipes',
+        verbose_name='Автор'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
@@ -85,7 +101,8 @@ class Recipe(models.Model):
     image = models.ImageField(
         upload_to='recipe/images/',
         null=False,
-        blank=False
+        blank=False,
+        verbose_name='Изображение'
     )
     cooking_time = models.IntegerField(verbose_name='Время приготовления')
 
@@ -94,13 +111,21 @@ class Recipe(models.Model):
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
 
-    def _str_(self):
+    def __str__(self):
         return self.name
 
 
 class RecipeIngredient(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        verbose_name='Рецепт'
+    )
+    ingredient = models.ForeignKey(
+        Ingredient,
+        on_delete=models.CASCADE,
+        verbose_name='Ингредиент'
+    )
     amount = models.SmallIntegerField(verbose_name='Количество')
 
     class Meta:
@@ -108,24 +133,29 @@ class RecipeIngredient(models.Model):
         verbose_name_plural = 'Ингредиенты рецепта'
 
     def __str__(self):
-        return (f'{self.ingredient.name} - {self.amount}'
+        return (f'{self.recipe.name} - {self.ingredient.name} - {self.amount}'
                 f' {self.ingredient.measurement_unit}')
 
 
 class Favorite(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE,
-        related_name='favorites'
+        related_name='favorites',
+        verbose_name='Пользователь'
     )
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE,
-        related_name='favorited_by'
+        related_name='favorited_by',
+        verbose_name='Рецепт'
     )
 
     class Meta:
         unique_together = ('user', 'recipe')
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
+
+    def __str__(self):
+        return f'{self.user} - {self.recipe}'
 
 
 class ShoppingCart(models.Model):
@@ -140,3 +170,8 @@ class ShoppingCart(models.Model):
 
     class Meta:
         unique_together = ('user', 'recipe')
+        verbose_name = 'Список покупок'
+        verbose_name_plural = 'Списки покупок'
+
+    def __str__(self):
+        return f'{self.user} - {self.recipe}'
