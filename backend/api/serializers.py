@@ -1,9 +1,9 @@
-from rest_framework import serializers
-from djoser.serializers import UserSerializer, UserCreateSerializer, TokenCreateSerializer
+from rest_framework import serializers, exceptions
+from djoser.serializers import (
+    UserSerializer, UserCreateSerializer, TokenCreateSerializer)
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, get_user_model
 from .models import Recipe, RecipeIngredient, Subscription, Ingredient
-from rest_framework.exceptions import PermissionDenied
 
 import base64
 import re
@@ -44,7 +44,8 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'password')
+        fields = (
+            'email', 'id', 'username', 'first_name', 'last_name', 'password')
 
 
 class EmailTokenCreateSerializer(TokenCreateSerializer):
@@ -62,18 +63,20 @@ class EmailTokenCreateSerializer(TokenCreateSerializer):
         if email and password:
             try:
                 user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                raise serializers.ValidationError('Неверный email или пароль')
+            except User.DoesNotExist as e:
+                raise serializers.ValidationError(
+                    'Неверный email или пароль') from e
 
             self.user = authenticate(
                 request=self.context.get('request'),
-                username=user.username,  # `authenticate` по умолчанию ожидает `username`
+                username=user.username,  # authenticate ожидает username
                 password=password,
             )
             if not self.user:
                 raise serializers.ValidationError('Неверный email или пароль')
         else:
-            raise serializers.ValidationError('Необходимо указать email и пароль')
+            raise serializers.ValidationError(
+                'Необходимо указать email и пароль')
 
         return attrs
 
@@ -171,10 +174,12 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate_ingredients(self, value):
         if not value:
-            raise serializers.ValidationError('Нужно добавить хотя бы один ингредиент.')
+            raise serializers.ValidationError(
+                'Нужно добавить хотя бы один ингредиент.')
         ids = [item['id'] for item in value]
         if len(ids) != len(set(ids)):
-            raise serializers.ValidationError('Ингредиенты не должны повторяться.')
+            raise serializers.ValidationError(
+                'Ингредиенты не должны повторяться.')
         return value
 
     def validate(self, attrs):
@@ -187,10 +192,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         for item in ingredients_data:
             try:
                 ingredient = Ingredient.objects.get(id=item['id'])
-            except Ingredient.DoesNotExist:
+            except Ingredient.DoesNotExist as e:
                 raise serializers.ValidationError(
-                    {'ingredients': [f'Ингредиент с id={item["id"]} не найден.']}
-                )
+                    {'ingredients':
+                     [f'Ингредиент с id={item["id"]} не найден.']}
+                ) from e
             recipe_ingredients.append(
                 RecipeIngredient(
                     recipe=recipe,
@@ -202,14 +208,16 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
-        recipe = Recipe.objects.create(**validated_data, author=self.context['request'].user)
+        recipe = Recipe.objects.create(
+            **validated_data, author=self.context['request'].user)
         self.create_ingredients(ingredients_data, recipe)
         return recipe
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
         if instance.author != user:
-            raise PermissionDenied('Вы не являетесь автором этого рецепта.')
+            raise exceptions.PermissionDenied(
+                'Вы не являетесь автором этого рецепта.')
         # Извлекаем ингредиенты, если они есть в запросе
         ingredients_data = validated_data.pop('ingredients')
 
@@ -287,8 +295,9 @@ class AvatarUpdateSerializer(serializers.Serializer):
 
         try:
             decoded_file = base64.b64decode(data)
-        except Exception:
-            raise serializers.ValidationError('Невозможно декодировать изображение.')
+        except Exception as e:
+            raise serializers.ValidationError(
+                'Невозможно декодировать изображение.') from e
 
         self.avatar_file = ContentFile(decoded_file, name=f"avatar.{ext}")
         return value

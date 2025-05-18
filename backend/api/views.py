@@ -1,13 +1,13 @@
-from rest_framework import generics, viewsets, status, views, permissions
+from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum
-from djoser.views import UserViewSet as DjoserUserViewSet
 from django.http import HttpResponse
 from djoser.conf import settings
+from djoser.views import UserViewSet as DjoserUserViewSet
 
 
 from .filters import RecipeFilter
@@ -54,7 +54,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
             Favorite.objects.create(user=user, recipe=recipe)
             serializer = ShortRecipeSerializer(recipe,
-                                              context={'request': request})
+                                               context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if request.method == 'DELETE':
@@ -73,15 +73,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         if request.method == 'POST':
             if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
-                return Response({'errors': 'Рецепт уже в корзине'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'errors': 'Рецепт уже в корзине'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             ShoppingCart.objects.create(user=user, recipe=recipe)
-            serializer = RecipeInShoppingCartSerializer(recipe, context={'request': request})
+            serializer = RecipeInShoppingCartSerializer(
+                recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if request.method == 'DELETE':
             cart_item = ShoppingCart.objects.filter(user=user, recipe=recipe)
             if not cart_item.exists():
-                return Response({'errors': 'Рецепта нет в корзине'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'errors': 'Рецепта нет в корзине'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             cart_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -94,9 +101,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if not recipes.exists():
             return Response({'errors': 'Корзина покупок пуста'}, status=400)
 
-        # Собираем ингредиенты с суммированием по количеству из всех рецептов в корзине
+        # Собираем ингредиенты с суммированием по количеству из всех рецептов
         ingredients = (recipes
-                       .values('ingredients__name', 'ingredients__measurement_unit')
+                       .values(
+                           'ingredients__name',
+                           'ingredients__measurement_unit')
                        .annotate(amount=Sum('recipeingredient__amount'))
                        .order_by('ingredients__name'))
 
@@ -112,18 +121,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         # Формируем HTTP-ответ с файлом
         response = HttpResponse(text, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename="shopping_cart.txt"'
+        response[
+            'Content-Disposition'] = 'attachment; filename="shopping_cart.txt"'
         return response
 
     @action(detail=True, methods=['GET'], url_path='get-link')
     def get_link(self, request, pk=None):
         try:
-            recipe = self.get_object()
+            self.get_object()
         except Recipe.DoesNotExist:
-            return Response({'detail': 'Страница не найдена.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'detail': 'Страница не найдена.'},
+                status=status.HTTP_404_NOT_FOUND)
 
-        # Генерация "короткой" ссылки (можно изменить по желанию)
-        short_id = format(int(pk), 'x')  # hex от id, как пример
+        # Генерация "короткой" ссылки
+        short_id = format(int(pk), 'x')  # hex от id
         short_url = f'https://foodgram.example.org/s/{short_id}'
 
         return Response({'short-link': short_url})
@@ -158,10 +170,8 @@ class CustomUserViewSet(DjoserUserViewSet):
             return (permissions.AllowAny(),)
         return (permissions.IsAuthenticatedOrReadOnly(),)
 
-
     def get_serializer_class(self):
         return self.action_serializers.get(self.action, self.serializer_class)
-
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
@@ -235,9 +245,12 @@ class CustomUserViewSet(DjoserUserViewSet):
             serializer = AvatarUpdateSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.update(user, serializer.validated_data)
-                avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
+                avatar_url = request.build_absolute_uri(
+                    user.avatar.url) if user.avatar else None
                 return Response({'avatar': avatar_url})
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST)
         # DELETE
         if user.avatar:
             user.avatar.delete(save=False)

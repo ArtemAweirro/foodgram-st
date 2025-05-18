@@ -5,7 +5,10 @@ from django.core.validators import RegexValidator
 
 username_validator = RegexValidator(
     regex=r'^[\w.@+-]+$',
-    message='Имя пользователя может содержать только буквы, цифры и символы . @ + - _ и должно заканчиваться на Z.'
+    message=(
+        'Имя пользователя может содержать только'
+        ' буквы, цифры и символы . @ + - _.'
+    )
 )
 
 
@@ -33,8 +36,16 @@ class User(AbstractUser):
 
 
 class Subscription(models.Model):
-    user = models.ForeignKey(User, related_name='follower', on_delete=models.CASCADE)
-    author = models.ForeignKey(User, related_name='following', on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        related_name='follower',
+        on_delete=models.CASCADE
+    )
+    author = models.ForeignKey(
+        User,
+        related_name='following',
+        on_delete=models.CASCADE
+    )
 
     class Meta:
         ordering = ('author',)
@@ -59,9 +70,11 @@ class Ingredient(models.Model):
 
 
 class Recipe(models.Model):
-    author = models.ForeignKey(User,
-                               on_delete=models.CASCADE,
-                               related_name='recipes')
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='recipes'
+    )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
