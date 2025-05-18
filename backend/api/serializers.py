@@ -15,8 +15,8 @@ User = get_user_model()
 class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.ImageField(required=False, allow_null=True)
-    first_name = serializers.CharField(required=True, max_length=150)
-    last_name = serializers.CharField(required=True, max_length=150)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
 
     class Meta:
         model = User
@@ -39,8 +39,8 @@ class CustomUserSerializer(UserSerializer):
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
 
     class Meta(UserCreateSerializer.Meta):
         model = User
@@ -245,14 +245,23 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     def get_is_subscribed(self, obj):
         user = self.context['request'].user
-        return user.is_authenticated and Subscription.objects.filter(author=obj).exists()
+        return user.is_authenticated and Subscription.objects.filter(
+            author=obj).exists()
 
     def get_recipes(self, obj):
-        recipes = Recipe.objects.filter(author=obj)
-        return ShortRecipeSerializer(recipes, many=True, context=self.context).data
+        request = self.context.get('request')
+        limit = self.context.get('recipes_limit')
+        recipes = obj.recipes.all()
+        if limit and limit.isdigit():
+            recipes = recipes[:int(limit)]
+
+        return ShortRecipeSerializer(
+            recipes, many=True,
+            context={'request': request}
+        ).data
 
     def get_recipes_count(self, obj):
-        return Recipe.objects.filter(author=obj).count()
+        return obj.recipes.count()
 
 
 class RecipeInShoppingCartSerializer(serializers.ModelSerializer):
