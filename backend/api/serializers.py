@@ -15,8 +15,8 @@ User = get_user_model()
 class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.ImageField(required=False, allow_null=True)
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
 
     class Meta:
         model = User
@@ -29,7 +29,6 @@ class CustomUserSerializer(UserSerializer):
             'is_subscribed',
             'avatar',
         )
-
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
@@ -233,7 +232,27 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    pass
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'email', 'username', 'first_name', 'last_name',
+            'is_subscribed', 'recipes', 'recipes_count', 'avatar'
+        )
+
+    def get_is_subscribed(self, obj):
+        user = self.context['request'].user
+        return user.is_authenticated and Subscription.objects.filter(author=obj).exists()
+
+    def get_recipes(self, obj):
+        recipes = Recipe.objects.filter(author=obj)
+        return ShortRecipeSerializer(recipes, many=True, context=self.context).data
+
+    def get_recipes_count(self, obj):
+        return Recipe.objects.filter(author=obj).count()
 
 
 class RecipeInShoppingCartSerializer(serializers.ModelSerializer):
