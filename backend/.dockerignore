@@ -1,0 +1,10 @@
+venv
+management
+__pycache__
+foodgram/__pycache__
+media
+.git
+db.sqlite3
+.idea
+.vscode
+.env

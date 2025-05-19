@@ -12,7 +12,7 @@ class RecipeFilter(filters.FilterSet):
         model = Recipe
         fields = ('author', 'is_in_shopping_cart', 'is_favorited')
 
-    def filter_is_in_shopping_cart(self, queryset, value):
+    def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
         if not user.is_authenticated:
             return queryset.none() if value else queryset
@@ -20,7 +20,7 @@ class RecipeFilter(filters.FilterSet):
             return queryset.filter(in_carts__user=user)
         return queryset.exclude(in_carts__user=user)
 
-    def filter_is_favorited(self, queryset, value):
+    def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
         if not user.is_authenticated:
             return queryset.none() if value else queryset
