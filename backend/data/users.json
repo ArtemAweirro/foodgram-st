@@ -1,0 +1,18 @@
+[
+  {
+    "email": "vasya@example.com",
+    "username": "vasya",
+    "first_name": "Вася",
+    "last_name": "Васин",
+    "password": "pbkdf2_sha256$260000$hash",
+    "is_staff": false
+  },
+  {
+    "email": "ivan@example.com",
+    "username": "ivan",
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "password": "pbkdf2_sha256$260000$hash",
+    "is_staff": false
+  }
+]
