@@ -177,7 +177,7 @@ class CustomUserViewSet(DjoserUserViewSet):
     def subscriptions(self, request):
         user = request.user
         # Получаем всех пользователей, на которых подписан текущий пользователь
-        authors = User.objects.filter(following__user=user)
+        authors = User.objects.filter(authors__user=user)
         # Извлекаем параметр ?recipes_limit
         recipes_limit = request.query_params.get('recipes_limit')
 

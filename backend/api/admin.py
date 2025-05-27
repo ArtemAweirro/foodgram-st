@@ -33,7 +33,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
         # Аннотируем количество добавлений рецепта в избранное
         queryset = queryset.annotate(
-            fav_count=Count('favorited_by', distinct=True)
+            fav_count=Count('favorites', distinct=True)
         )
 
         # Предзагружаем ингредиенты через связь RecipeIngredient и ingredient
@@ -178,8 +178,8 @@ class UserAdmin(admin.ModelAdmin):
         queryset = super().get_queryset(request)
         return queryset.annotate(
             recipe_count=Count('recipes', distinct=True),
-            subscription_count=Count('following', distinct=True),  # на него
-            subscribe_count=Count('follower', distinct=True)  # на других
+            subscription_count=Count('authors', distinct=True),  # на него
+            subscribe_count=Count('followers', distinct=True)  # на других
         )
 
     @admin.display(description='Фамилия Имя')
