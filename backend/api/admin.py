@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Prefetch
 
-from recipes.models import Ingredient, RecipeIngredient
 from .models import (
-    Recipe, User, Subscription, Favorite, ShoppingCart
+    Recipe, User, Subscription, Favorite, ShoppingCart,
+    Ingredient, RecipeIngredient
 )
 
 

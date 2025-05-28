@@ -29,7 +29,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'api.apps.ApiConfig',
-    'recipes',
     'rest_framework.authtoken',
     'rest_framework',
     'corsheaders',
@@ -153,3 +152,15 @@ SIMPLE_JWT = {
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+DJOSER = {
+    "PERMISSIONS": {
+        "user": ["rest_framework.permissions.AllowAny"],
+        "user_list": ["rest_framework.permissions.AllowAny"],
+        "user_create": ["rest_framework.permissions.AllowAny"]
+    },
+    'SERIALIZERS': {
+        'user': 'api.serializers.UserDetailSerializer',
+        'current_user': 'api.serializers.UserDetailSerializer',
+    }
+}

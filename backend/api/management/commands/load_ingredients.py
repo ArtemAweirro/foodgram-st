@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 from django.db.utils import OperationalError
-from recipes.models import Ingredient
+from api.models import Ingredient
 
 
 class Command(BaseCommand):

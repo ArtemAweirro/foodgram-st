@@ -1,5 +1,5 @@
 from django_filters import rest_framework as filters
-from ..api.models import Recipe
+from api.models import Recipe
 
 
 class RecipeFilter(filters.FilterSet):
@@ -25,5 +25,5 @@ class RecipeFilter(filters.FilterSet):
         if not user.is_authenticated:
             return recipes_qs.none() if value else recipes_qs
         if value:
-            return recipes_qs.filter(favorited_by__user=user)
-        return recipes_qs.exclude(favorited_by__user=user)
+            return recipes_qs.filter(favorites__user=user)
+        return recipes_qs.exclude(favorites__user=user)
