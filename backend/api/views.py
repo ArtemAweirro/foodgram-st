@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum
@@ -20,16 +21,15 @@ from .models import (
 from .serializers import (
     RecipeReadSerializer, RecipeWriteSerializer, ShortRecipeSerializer,
     IngredientSerializer,
-    SubscriptionSerializer,
-    RecipeInShoppingCartSerializer,
+    UserWithSubscriptionsSerializer,
     AvatarUpdateSerializer,
-    CustomUserSerializer, CustomUserCreateSerializer
+    UserDetailSerializer
 )
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = (OwnerOrReadOnly,)
+    permission_classes = (IsAuthenticatedOrReadOnly, OwnerOrReadOnly)
     pagination_class = LimitOffsetPagination
     filter_backends = (DjangoFilterBackend, )
     filterset_class = RecipeFilter
@@ -78,7 +78,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             ShoppingCart.objects.create(user=user, recipe=recipe)
-            serializer = RecipeInShoppingCartSerializer(
+            serializer = ShortRecipeSerializer(
                 recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -151,14 +151,14 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CustomUserViewSet(DjoserUserViewSet):
-    serializer_class = CustomUserSerializer
+    serializer_class = UserDetailSerializer
     pagination_class = LimitOffsetPagination
 
     # Словарь сериализаторов в зависимости от action
     action_serializers = {
         'create': CustomUserCreateSerializer,
-        'subscriptions': SubscriptionSerializer,
-        'subscribe': SubscriptionSerializer,
+        'subscriptions': UserWithSubscriptionsSerializer,
+        'subscribe': UserWithSubscriptionsSerializer,
         'avatar': AvatarUpdateSerializer,
         'set_password': settings.SERIALIZERS.set_password,
     }
@@ -183,7 +183,7 @@ class CustomUserViewSet(DjoserUserViewSet):
 
         page = self.paginate_queryset(authors)
         if page is not None:
-            serializer = SubscriptionSerializer(
+            serializer = UserWithSubscriptionsSerializer(
                 page, many=True,
                 context={
                     'request': request,
@@ -192,7 +192,7 @@ class CustomUserViewSet(DjoserUserViewSet):
             )
             return self.get_paginated_response(serializer.data)
 
-        serializer = SubscriptionSerializer(
+        serializer = UserWithSubscriptionsSerializer(
             authors, many=True, context={'request': request}
         )
         return Response(serializer.data)
@@ -220,7 +220,7 @@ class CustomUserViewSet(DjoserUserViewSet):
             # Извлекаем параметр ?recipes_limit
             recipes_limit = request.query_params.get('recipes_limit')
 
-            serializer = SubscriptionSerializer(
+            serializer = UserWithSubscriptionsSerializer(
                 author,
                 context={
                     'request': request,

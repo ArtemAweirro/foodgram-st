@@ -28,3 +28,5 @@ typing_extensions==4.13.2
 tzdata==2025.2
 urllib3==2.4.0
 psycopg2-binary==2.9.3
+drf_extra_fields==3.7.0
+filetype==1.2.0

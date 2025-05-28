@@ -148,12 +148,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-DJOSER = {
-    'SERIALIZERS': {
-        'token_create': 'api.serializers.EmailTokenCreateSerializer',
-    }
-}
-
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
