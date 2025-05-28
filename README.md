@@ -43,16 +43,10 @@ docker-compose exec backend python manage.py collectstatic --noinput
 docker-compose exec backend python manage.py createsuperuser
 ```
 
-На данном этапе проект уже работает, но он пуст. Чтобы заполнить его данными, загрузите ингредиенты, пользователей и рецепты:
+На данном этапе проект уже работает, но он пуст. Чтобы заполнить его данными, загрузите ингредиенты
 
 ```bash
 docker-compose exec backend python manage.py load_ingredients
-```
-```bash
-docker-compose exec backend python manage.py load_users
-```
-```bash
-docker-compose exec backend python manage.py load_recipes
 ```
 
 Приятного пользования!
