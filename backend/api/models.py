@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, RegexValidator
 
 
-
 class Ingredient(models.Model):
     name = models.CharField(verbose_name='Название', max_length=128)
     measurement_unit = models.CharField(
@@ -28,7 +27,7 @@ class User(AbstractUser):
     )
     username = models.CharField(
         unique=True,
-        max_length=150,        
+        max_length=150,
         validators=(
             RegexValidator(
                 regex=(r"^[\w.@+-]+$"),
@@ -66,7 +65,7 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-    
+
 
 class Recipe(models.Model):
     author = models.ForeignKey(

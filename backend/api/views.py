@@ -3,7 +3,6 @@ from datetime import datetime
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from django.db.models import Sum
@@ -46,7 +45,8 @@ def handle_add_or_remove(request, obj, model, lookup_fields,
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = (OwnerOrReadOnly,)
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+                          OwnerOrReadOnly)
     pagination_class = LimitOffsetPagination
     filter_backends = (DjangoFilterBackend, )
     filterset_class = RecipeFilter

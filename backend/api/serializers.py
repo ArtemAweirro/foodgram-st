@@ -9,8 +9,8 @@ User = get_user_model()
 
 
 class UserDetailSerializer(UserSerializer):
-    is_subscribed = serializers.SerializerMethodField(required=True)
-    avatar = serializers.ImageField(required=True, allow_null=True)
+    is_subscribed = serializers.SerializerMethodField()
+    avatar = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
