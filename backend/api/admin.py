@@ -38,7 +38,7 @@ class RecipeAdmin(admin.ModelAdmin):
         # Предзагружаем ингредиенты через связь RecipeIngredient и ingredient
         queryset = queryset.prefetch_related(
             Prefetch(
-                'recipeingredient_set',
+                'recipe_ingredients',
                 queryset=RecipeIngredient.objects.select_related('ingredient')
             )
         )
@@ -51,7 +51,7 @@ class RecipeAdmin(admin.ModelAdmin):
     @admin.display(description='Ингредиенты')
     def display_ingredients(self, recipe):
         # Используем уже предзагруженные RecipeIngredient объекты
-        recipe_ingredients = recipe.recipeingredient_set.all()
+        recipe_ingredients = recipe.recipe_ingredients.all()
         return mark_safe(
             '<br>'.join(
                 (f'{ri.ingredient.name} — {ri.amount} '
