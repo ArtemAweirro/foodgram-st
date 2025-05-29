@@ -11,6 +11,29 @@ from .models import (
 admin.site.empty_value_display = 'Не задано'
 
 
+class RelatedExistsFilter(admin.SimpleListFilter):
+    title = ''
+    parameter_name = ''
+    related_field = ''
+
+    LOOKUPS = (
+        ('yes', 'Да'),
+        ('no', 'Нет'),
+    )
+
+    def lookups(self, request, model_admin):
+        return self.LOOKUPS
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'yes':
+            return queryset.filter(
+                **{f'{self.related_field}__isnull': False}).distinct()
+        if value == 'no':
+            return queryset.filter(**{f'{self.related_field}__isnull': True})
+        return queryset
+
+
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
     extra = 1  # Количество пустых строк по умолчанию
@@ -44,19 +67,17 @@ class RecipeAdmin(admin.ModelAdmin):
         )
         return queryset
 
-    @admin.display(description='Количество в избранном')
+    @admin.display(description='В избранном')
     def favorites_count(self, recipe):
         return recipe.fav_count
 
     @admin.display(description='Ингредиенты')
     def display_ingredients(self, recipe):
-        # Используем уже предзагруженные RecipeIngredient объекты
-        recipe_ingredients = recipe.recipe_ingredients.all()
         return mark_safe(
             '<br>'.join(
                 (f'{ri.ingredient.name} — {ri.amount} '
                  f'{ri.ingredient.measurement_unit}')
-                for ri in recipe_ingredients
+                for ri in recipe.recipe_ingredients.all()
             )
         )
 
@@ -68,22 +89,10 @@ class RecipeAdmin(admin.ModelAdmin):
         return 'Нет изображения'
 
 
-class InRecipesFilter(admin.SimpleListFilter):
+class InRecipesFilter(RelatedExistsFilter):
     title = 'Есть в рецептах'
     parameter_name = 'in_recipes'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'yes':
-            return queryset.filter(recipe_ingredients__isnull=False).distinct()
-        if self.value() == 'no':
-            return queryset.filter(recipe_ingredients__isnull=True)
-        return queryset
+    related_field = 'recipe_ingredients'
 
 
 @admin.register(Ingredient)
@@ -92,7 +101,7 @@ class IngredientAdmin(admin.ModelAdmin):
     search_fields = ('name', 'measurement_unit')
     list_filter = ('measurement_unit', InRecipesFilter)
 
-    @admin.display(description='Количество рецептов с данным ингредиентом')
+    @admin.display(description='Рецептов')
     def recipes_count(self, ingredient):
         return ingredient.recipes_count
 
@@ -109,58 +118,22 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
     search_fields = ('recipe__name', 'ingredient__name')
 
 
-class HasRecipesFilter(admin.SimpleListFilter):
+class HasRecipesFilter(RelatedExistsFilter):
     title = 'Есть рецепты'
     parameter_name = 'has_recipes'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'yes':
-            return queryset.filter(recipes__isnull=False).distinct()
-        if self.value() == 'no':
-            return queryset.filter(recipes__isnull=True)
-        return queryset
+    related_field = 'recipes'
 
 
-class HasSubscriptionsFilter(admin.SimpleListFilter):
+class HasSubscriptionsFilter(RelatedExistsFilter):
     title = 'Есть подписчики'
     parameter_name = 'has_subscriptions'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'yes':
-            return queryset.filter(following__isnull=False).distinct()
-        if self.value() == 'no':
-            return queryset.filter(following__isnull=True)
-        return queryset
+    related_field = 'following'
 
 
-class HasSubscribersFilter(admin.SimpleListFilter):
+class HasSubscribersFilter(RelatedExistsFilter):
     title = 'Есть подписки'
     parameter_name = 'has_subscribers'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'yes':
-            return queryset.filter(follower__isnull=False).distinct()
-        if self.value() == 'no':
-            return queryset.filter(follower__isnull=True)
-        return queryset
+    related_field = 'follower'
 
 
 @admin.register(User)
@@ -212,15 +185,8 @@ class SubcriptionAdmin(admin.ModelAdmin):
     list_filter = ('user', 'author')
 
 
-@admin.register(Favorite)
+@admin.register(Favorite, ShoppingCart)
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'recipe')
     search_fields = ('user',)
     list_filter = ('user', 'recipe')
-
-
-@admin.register(ShoppingCart)
-class ShoppingCartAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'recipe')
-    search_fields = ('user',)
-    list_filter = ('user',)
