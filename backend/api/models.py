@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
@@ -92,6 +93,33 @@ class Recipe(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ShortLink(models.Model):
+    slug = models.SlugField(
+        unique=True,
+        max_length=64,
+        verbose_name='Короткий код'
+    )
+    original_url = models.URLField(
+        verbose_name='Оригинальная ссылка'
+    )
+    created = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания'
+    )
+
+    class Meta:
+        verbose_name = 'Короткая ссылка'
+        verbose_name_plural = 'Короткие ссылки'
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = uuid.uuid4().hex[:7]
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'/s/{self.slug} → {self.original_url}'
 
 
 class RecipeIngredient(models.Model):

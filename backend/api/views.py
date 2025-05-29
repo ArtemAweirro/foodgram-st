@@ -1,20 +1,21 @@
-from io import BytesIO
 from datetime import datetime
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from django.db.models import Sum
 from django.http import FileResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.views import View
 from djoser.views import UserViewSet as DjoserUserViewSet
 from django_filters.rest_framework import DjangoFilterBackend
-from urlshortner.utils import shorten_url
 
 from .filters import RecipeFilter
 from .models import (
-    Recipe, Ingredient, Favorite, Subscription, User, ShoppingCart
+    Recipe, Ingredient, Favorite, Subscription, User, ShoppingCart, ShortLink
 )
 from .serializers import (
     UserWithSubscriptionsSerializer,
@@ -35,12 +36,15 @@ def handle_add_or_remove(request, obj, model, lookup_fields,
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     if request.method == 'DELETE':
-        exists = model.objects.filter(**lookup_fields).exists()
-        if not exists:
-            raise ValidationError({'errors': error_messages['does_not_exist']})
-        instance = model.objects.get(**lookup_fields)
+        instance = get_object_or_404(model, **lookup_fields)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShortLinkRedirectView(View):
+    def get(self, request, slug):
+        short_link = get_object_or_404(ShortLink, slug=slug)
+        return redirect(short_link.original_url)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -52,7 +56,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
-        if self.request.method in ['POST', 'PUT', 'PATCH']:
+        if self.request.method not in SAFE_METHODS:
             return RecipeWriteSerializer
         return RecipeReadSerializer
 
@@ -105,36 +109,46 @@ class RecipeViewSet(viewsets.ModelViewSet):
         # Формируем текст для файла
         date_str = datetime.now().strftime('%d.%m.%Y')
         text = '\n'.join([
-            ('Список покупок для пользователя: '
-             f'{user.get_full_name()}'),
+            f'Список покупок для пользователя: {user.get_full_name()}',
             f'Дата: {date_str}',
             '',
             'Необходимые ингредиенты:',
             *[
-                f'{idx + 1}. {item["ingredients__name"].capitalize()} — '
-                f'{item["amount"]} {item["ingredients__measurement_unit"]}'
-                for idx, item in enumerate(ingredients)
+                (f'{idx}. {item["ingredients__name"].capitalize()} '
+                 f'— {item["amount"]} {item["ingredients__measurement_unit"]}')
+                for idx, item in enumerate(ingredients, start=1)
             ],
             '',
             'Рецепты в корзине:',
             *[
-                f'- {recipe.name} (автор: {recipe.author.get_full_name()})'
+                f'- {recipe.name} (автор: {recipe.author.username})'
                 for recipe in recipes
             ]
         ])
-        buffer = BytesIO()
-        buffer.write(text.encode('utf-8'))
-        buffer.seek(0)
+
         return FileResponse(
-            buffer, as_attachment=True, content_type='text/plain'
+            text, as_attachment=True, content_type='text/plain'
         )
 
     @action(methods=["get"], detail=True, url_path="get-link")
     def get_link(self, request, pk=None):
-        get_object_or_404(Recipe, id=pk)
-        default_link = request.build_absolute_uri(f"/api/recipes/{pk}/")
-        short_link = shorten_url(url=default_link, is_permanent=False)
-        return Response(data={"short-link": short_link})
+        if not Recipe.objects.filter(id=pk).exists():
+            raise ValidationError(
+                {'errors': f'Рецепта с id={pk} не существует'})
+        # Получаем путь
+        api_path = reverse('recipe-detail', args=[pk])
+        # Удаляем префикс "/api", чтобы получить "/recipes/1/"
+        frontend_path = api_path.replace('/api', '', 1)
+        # Строим абсолютный URL
+        full_url = request.build_absolute_uri(frontend_path)
+        # Находим или создаем короткую ссылку
+        short_link_obj, created = ShortLink.objects.get_or_create(
+            original_url=full_url
+        )
+        return Response(
+            data={"short-link":
+                  request.build_absolute_uri(f"/s/{short_link_obj.slug}/")}
+        )
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):

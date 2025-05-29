@@ -3,10 +3,15 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 
+from api.views import ShortLinkRedirectView
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-    path("r/", include('urlshortner.urls'))
+    path("s/<slug:slug>/",
+         ShortLinkRedirectView.as_view(),
+         name="short-link-redirect"),
 ]
 
 if settings.DEBUG:

@@ -33,8 +33,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'djoser',
-    'django_filters',
-    'urlshortner'
+    'django_filters'
 ]
 
 MIDDLEWARE = [

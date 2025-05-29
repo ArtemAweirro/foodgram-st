@@ -3,7 +3,6 @@ from django.urls import include, path
 
 from api.views import UserViewSet, RecipeViewSet, IngredientViewSet
 
-
 router = routers.DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'recipes', RecipeViewSet, basename='recipe')

@@ -4,7 +4,7 @@ from django.db.models import Count, Prefetch
 
 from .models import (
     Recipe, User, Subscription, Favorite, ShoppingCart,
-    Ingredient, RecipeIngredient
+    Ingredient, RecipeIngredient, ShortLink
 )
 
 
@@ -190,3 +190,8 @@ class FavoriteAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'recipe')
     search_fields = ('user',)
     list_filter = ('user', 'recipe')
+
+
+@admin.register(ShortLink)
+class ShortLinkAdmin(admin.ModelAdmin):
+    list_display = ('id', 'original_url', 'slug', 'created')
