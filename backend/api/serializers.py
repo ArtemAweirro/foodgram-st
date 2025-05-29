@@ -35,10 +35,9 @@ class UserDetailSerializer(UserSerializer):
         )
 
 
-class UserWithSubscriptionsSerializer(serializers.ModelSerializer):
+class UserWithSubscriptionsSerializer(UserDetailSerializer):
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.IntegerField(source='recipes.count')
-    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -47,13 +46,6 @@ class UserWithSubscriptionsSerializer(serializers.ModelSerializer):
             'recipes', 'recipes_count', 'avatar', 'is_subscribed'
         )
         read_only_fields = fields
-
-    def get_is_subscribed(self, obj):
-        user = self.context['request'].user
-        return (
-            user.is_authenticated
-            and Subscription.objects.filter(author=obj).exists()
-        )
 
     def get_recipes(self, obj):
         request = self.context.get('request')
@@ -178,15 +170,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return attrs
 
     def create_ingredients(self, ingredients_data, recipe):
-        recipe_ingredients = [
-            RecipeIngredient(
+        RecipeIngredient.objects.bulk_create(
+            [RecipeIngredient(
                 recipe=recipe,
                 ingredient=item['id'],
                 amount=item['amount']
-            )
-            for item in ingredients_data
-        ]
-        RecipeIngredient.objects.bulk_create(recipe_ingredients)
+            ) for item in ingredients_data]
+        )
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
@@ -198,12 +188,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         # Извлекаем ингредиенты, если они есть в запросе
         ingredients_data = validated_data.pop('ingredients')
-        instance = super().update(instance, validated_data)
+        # Обновляем всё, кроме ингредиентов
+        updated_instance = super().update(instance, validated_data)
         # Очистить старые ингредиенты
-        instance.ingredients.clear()
+        updated_instance.ingredients.clear()
         # Создать новые связи
-        self.create_ingredients(ingredients_data, instance)
-        return instance
+        self.create_ingredients(ingredients_data, updated_instance)
+        return updated_instance
 
     def to_representation(self, instance):
         return RecipeReadSerializer(instance, context=self.context).data
