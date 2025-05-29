@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator, RegexValidator
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.validators import MinValueValidator
 
 
 class Ingredient(models.Model):
@@ -11,7 +12,7 @@ class Ingredient(models.Model):
     )
 
     class Meta:
-        ordering = ('id',)
+        ordering = ('name',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
 
@@ -28,16 +29,7 @@ class User(AbstractUser):
     username = models.CharField(
         unique=True,
         max_length=150,
-        validators=(
-            RegexValidator(
-                regex=(r"^[\w.@+-]+$"),
-                message=(
-                    "Имя пользователя может содержать только буквы, "
-                    "цифры и знаки @/./+/-/_"
-                ),
-                code="invalid_username",
-            ),
-        ),
+        validators=(UnicodeUsernameValidator(),),
         verbose_name='Никнейм'
     )
     first_name = models.CharField(
@@ -77,7 +69,7 @@ class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
-        related_name='ingredient_in_recipes',
+        related_name='recipes',
         verbose_name='Ингредиенты'
     )
     name = models.CharField(verbose_name='Название', max_length=256)
@@ -90,11 +82,7 @@ class Recipe(models.Model):
     )
     cooking_time = models.IntegerField(
         verbose_name='Время приготовления',
-        validators=(
-            MinValueValidator(
-                1, 'Время приготовления должно быть не менее 1 минуты'
-            ),
-        )
+        validators=(MinValueValidator(1),)
     )
 
     class Meta:
@@ -121,11 +109,7 @@ class RecipeIngredient(models.Model):
     )
     amount = models.SmallIntegerField(
         verbose_name='Количество',
-        validators=(
-            MinValueValidator(
-                1, 'Количество ингредиентов должно быть не менее 1 ед.'
-            ),
-        )
+        validators=(MinValueValidator(1),)
     )
 
     class Meta:
